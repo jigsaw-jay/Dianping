@@ -29,7 +29,8 @@ public class RefreshTokenInterceptor implements HandlerInterceptor {
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         //1.获取请求头中的token
         String token = request.getHeader("authorization");
-        //2.判断token是否为空
+        //2.判断token是否为空（StrUtil.isBlank会检测token是否为null或空字符串，或者只包含空格）
+        //token.isEmpty()仅仅检查字符串是否为空，不会考虑字符串只包含空格的情况
         if (StrUtil.isBlank(token)) {
             //3.为空直接放行
             return true;

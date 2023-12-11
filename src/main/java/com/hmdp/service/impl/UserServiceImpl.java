@@ -13,8 +13,8 @@ import com.hmdp.entity.User;
 import com.hmdp.mapper.UserMapper;
 import com.hmdp.service.IUserService;
 import com.hmdp.utils.RegexUtils;
+import com.hmdp.utils.SMSUtils;
 import com.hmdp.utils.ValidateCodeUtils;
-import jakarta.servlet.http.HttpSession;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -68,18 +68,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     @Override
     public Result login(LoginFormDTO loginForm) {
         String phone = loginForm.getPhone();
-        //从redis中获取验证码
+        //1.从redis中获取验证码
         String cacheCode = stringRedisTemplate.opsForValue().get(LOGIN_CODE_KEY + phone);
         String code = loginForm.getCode();
-        //1.校验手机号
-        if (RegexUtils.isPhoneInvalid(phone)) {
-            //不符合
-            return Result.fail("手机号输入错误！");
-        }
-        //2.校验验证码
-        if (cacheCode == null || !cacheCode.toString().equals(code)) {
+        //2.校验手机号和验证码
+        if (RegexUtils.isPhoneInvalid(phone)||cacheCode == null || !cacheCode.toString().equals(code)) {
             //3.不一致，报错
-            return Result.fail("验证码错误！");
+            return Result.fail("手机或验证码错误！");
         }
         //4.一致，根据手机号查询用户
         LambdaQueryWrapper<User> lqw = new LambdaQueryWrapper<>();
@@ -92,15 +87,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }
         //7.存在->随机生成token，作为登录令牌
         String token = UUID.randomUUID().toString(true);
-        //8.将User对象转为userDTO对象并转为Hash存储
+        //8.将User对象转为userDTO对象并转为Hash存储,自定义copy信息将Long类型的ID转为String类型
         UserDTO userDTO = BeanUtil.copyProperties(user, UserDTO.class);
-        Map<String, Object> userMap = BeanUtil.beanToMap(userDTO,new HashMap<>(), CopyOptions.create()
+        Map<String, Object> userMap = BeanUtil.beanToMap(userDTO, new HashMap<>(), CopyOptions.create()
                 .setIgnoreNullValue(true)
-                .setFieldValueEditor((fieldName,fieldValue)->fieldValue.toString()));
+                .setFieldValueEditor((fieldName, fieldValue) -> fieldValue.toString()));
         //9.存储到redis,并设置有效期
         String tokenKey = LOGIN_USER_KEY + token;
         stringRedisTemplate.opsForHash().putAll(tokenKey, userMap);
-        stringRedisTemplate.expire(tokenKey, LOGIN_USER_TTL,TimeUnit.MILLISECONDS);
+        stringRedisTemplate.expire(tokenKey, LOGIN_USER_TTL, TimeUnit.MILLISECONDS);
         //10.返回token
         return Result.ok(token);
     }
