@@ -52,7 +52,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
             return Result.fail("手机号错误！");
         }
         //3.符合->生成验证码
-        String code = ValidateCodeUtils.generateValidateCode(4).toString();
+        String code = ValidateCodeUtils.generateValidateCode(6).toString();
         log.info("验证码->{}", code);
         //调用阿里云短信服务API
         //SMSUtils.sendMessage("周嘉靖的博客", "SMS_463905651", phone, code);
