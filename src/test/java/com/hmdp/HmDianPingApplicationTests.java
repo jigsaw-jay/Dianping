@@ -52,19 +52,24 @@ class HmDianPingApplicationTests {
         for (int i = 1; i < 1011; i++) {
             int id = i;
             User user = service.getById(id);
-            if (user!=null){
+            if (user != null) {
                 String token = UUID.randomUUID().toString(true);
                 UserDTO userDTO = BeanUtil.copyProperties(user, UserDTO.class);
                 Map<String, Object> userMap = BeanUtil.beanToMap(userDTO, new HashMap<>(), CopyOptions.create()
                         .setIgnoreNullValue(true)
                         .setFieldValueEditor((fieldName, fieldValue) -> fieldValue.toString()));
                 String tokenKey = LOGIN_USER_KEY + token;
-                FileWriter fw=new FileWriter("redis.txt",true);
-                fw.write(token+"\n");
+                FileWriter fw = new FileWriter("redis.txt", true);
+                fw.write(token + "\n");
                 fw.close();
                 stringRedisTemplate.opsForHash().putAll(tokenKey, userMap);
                 stringRedisTemplate.expire(tokenKey, LOGIN_USER_TTL, TimeUnit.SECONDS);
             }
         }
+    }
+
+    @Test
+    void test1() {
+        System.out.println(System.currentTimeMillis());
     }
 }
