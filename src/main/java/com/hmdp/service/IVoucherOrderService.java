@@ -16,6 +16,6 @@ public interface IVoucherOrderService extends IService<VoucherOrder> {
 
     Result seckillVoucher(Long voucherId);
 
-    Result createOrder(Long voucherId, Long userId);
+    void createOrder(VoucherOrder voucherOrder);
 }
 
