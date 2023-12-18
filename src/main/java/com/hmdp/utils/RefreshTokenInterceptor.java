@@ -26,7 +26,7 @@ public class RefreshTokenInterceptor implements HandlerInterceptor {
     private StringRedisTemplate stringRedisTemplate;
 
     @Override
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         //1.获取请求头中的token
         String token = request.getHeader("authorization");
         //2.判断token是否为空（StrUtil.isBlank会检测token是否为null或空字符串，或者只包含空格）
@@ -54,7 +54,7 @@ public class RefreshTokenInterceptor implements HandlerInterceptor {
     }
 
     @Override
-    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {
+    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex){
         //移除用户
         UserHolder.removeUser();
     }

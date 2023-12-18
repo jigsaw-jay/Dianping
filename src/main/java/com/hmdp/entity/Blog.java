@@ -40,6 +40,8 @@ public class Blog implements Serializable {
      * 用户id
      */
     private Long userId;
+
+
     /**
      * 用户图标
      */
@@ -50,6 +52,8 @@ public class Blog implements Serializable {
      */
     @TableField(exist = false)
     private String name;
+
+
     /**
      * 是否点赞过了
      */
@@ -90,6 +94,5 @@ public class Blog implements Serializable {
      * 更新时间
      */
     private LocalDateTime updateTime;
-
 
 }

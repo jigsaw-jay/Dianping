@@ -40,7 +40,7 @@ public class ShopTypeServiceImpl extends ServiceImpl<ShopTypeMapper, ShopType> i
         //1.从Redis中获取JSON字符串
         String shopTypeJson = stringRedisTemplate.opsForValue().get(CACHE_SHOP_TYPE);
         List<ShopType> shopTypes;
-        //2.如果非空则将JSON字符串转为List<ShopType>集合返回
+        //2.如果非空且非null则将JSON字符串转为List<ShopType>集合返回
         if (StrUtil.isNotBlank(shopTypeJson)) {
             shopTypes = JSONUtil.toList(shopTypeJson, ShopType.class);
             return shopTypes;

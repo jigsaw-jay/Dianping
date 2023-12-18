@@ -13,8 +13,8 @@ import com.hmdp.entity.User;
 import com.hmdp.mapper.UserMapper;
 import com.hmdp.service.IUserService;
 import com.hmdp.utils.RegexUtils;
-import com.hmdp.utils.SMSUtils;
 import com.hmdp.utils.ValidateCodeUtils;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -72,7 +72,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         String cacheCode = stringRedisTemplate.opsForValue().get(LOGIN_CODE_KEY + phone);
         String code = loginForm.getCode();
         //2.校验手机号和验证码
-        if (RegexUtils.isPhoneInvalid(phone)||cacheCode == null || !cacheCode.toString().equals(code)) {
+        if (RegexUtils.isPhoneInvalid(phone) || cacheCode == null || !cacheCode.toString().equals(code)) {
             //3.不一致，报错
             return Result.fail("手机或验证码错误！");
         }
@@ -98,6 +98,25 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         stringRedisTemplate.expire(tokenKey, LOGIN_USER_TTL, TimeUnit.SECONDS);
         //10.返回token
         return Result.ok(token);
+    }
+
+    /**
+     * 退出登录
+     *
+     * @return
+     */
+    @Override
+    public Result logout(HttpServletRequest request) {
+        //1.获取请求头中的token
+        String token = request.getHeader("authorization");
+        //2.判断token是否为null->为null直接返回
+        if (token == null) {
+            return Result.fail("用户未登录！");
+        }
+        //3.不为null->去Redis中删除该token
+        String tokenKey = LOGIN_USER_KEY + token;
+        stringRedisTemplate.delete(tokenKey);
+        return Result.ok("退出成功！");
     }
 
     /**

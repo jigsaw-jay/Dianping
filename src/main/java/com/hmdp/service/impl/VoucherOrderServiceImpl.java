@@ -177,7 +177,7 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
                 try {
                     Thread.sleep(20);
                 } catch (InterruptedException ex) {
-                    throw new RuntimeException(ex);
+                    ex.printStackTrace();
                 }
             }
         }

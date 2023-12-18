@@ -10,7 +10,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
  */
 public class LoginInterceptor implements HandlerInterceptor {
     @Override
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler){
         //1.判断是否需要拦截（即判断ThreadLocal中是否有该用户）
         if (UserHolder.getUser() == null) {
             //2.没有->需要拦截
