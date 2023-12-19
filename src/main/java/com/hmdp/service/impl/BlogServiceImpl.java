@@ -123,6 +123,23 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     }
 
     /**
+     * 根据UserId分页查询blog
+     *
+     * @param id
+     * @param current
+     * @return
+     */
+    @Override
+    public Result queryBlogByUserId(Long id, Integer current) {
+        Page<Blog> pageInfo = new Page(current, SystemConstants.MAX_PAGE_SIZE);
+        LambdaQueryWrapper<Blog> lqw = new LambdaQueryWrapper<>();
+        lqw.eq(Blog::getUserId, id);
+        Page<Blog> page = page(pageInfo, lqw);
+        List<Blog> records = page.getRecords();
+        return Result.ok(records);
+    }
+
+    /**
      * 根据id查询，查看笔记
      */
     @Override

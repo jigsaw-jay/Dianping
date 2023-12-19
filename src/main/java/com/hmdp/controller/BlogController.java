@@ -81,4 +81,12 @@ public class BlogController {
     public Result queryBlogLikes(@PathVariable Long id) {
         return blogService.queryBlogLikes(id);
     }
+
+    /**
+     * 根据Id对blog进行分页查询
+     */
+    @GetMapping("/of/user")
+    public Result queryBlogByUserId(@RequestParam("id") Long id, @RequestParam("current") Integer current) {
+        return blogService.queryBlogByUserId(id,current);
+    }
 }

@@ -20,4 +20,7 @@ public interface IUserService extends IService<User> {
     Result login(LoginFormDTO loginForm);
 
     Result logout(HttpServletRequest request);
+
+    Result queryUserById(Long id);
+
 }

@@ -5,14 +5,19 @@ import cn.hutool.core.bean.copier.CopyOptions;
 import cn.hutool.core.lang.UUID;
 import cn.hutool.core.util.RandomUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.hmdp.dto.LoginFormDTO;
 import com.hmdp.dto.Result;
 import com.hmdp.dto.UserDTO;
+import com.hmdp.entity.Blog;
 import com.hmdp.entity.User;
 import com.hmdp.mapper.UserMapper;
+import com.hmdp.service.IBlogService;
 import com.hmdp.service.IUserService;
 import com.hmdp.utils.RegexUtils;
+import com.hmdp.utils.SystemConstants;
+import com.hmdp.utils.UserHolder;
 import com.hmdp.utils.ValidateCodeUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -109,15 +114,34 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
     public Result logout(HttpServletRequest request) {
         //1.获取请求头中的token
         String token = request.getHeader("authorization");
-        //2.判断token是否为null->为null直接返回
+        //2.删除ThreadLocal中的user信息
+        UserHolder.removeUser();
+        //3.判断token是否为null->为null直接返回
         if (token == null) {
             return Result.fail("用户未登录！");
         }
-        //3.不为null->去Redis中删除该token
+        //4.不为null->去Redis中删除该token
         String tokenKey = LOGIN_USER_KEY + token;
         stringRedisTemplate.delete(tokenKey);
         return Result.ok("退出成功！");
     }
+
+    /**
+     * 根据Id查询用户信息
+     *
+     * @param id
+     * @return
+     */
+    @Override
+    public Result queryUserById(Long id) {
+        User user = getById(id);
+        if (user == null) {
+            return Result.fail("查无此人");
+        }
+        UserDTO userDTO = BeanUtil.copyProperties(user, UserDTO.class);
+        return Result.ok(userDTO);
+    }
+
 
     /**
      * 创建新用户
