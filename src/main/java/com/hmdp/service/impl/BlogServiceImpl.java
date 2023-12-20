@@ -5,19 +5,24 @@ import cn.hutool.core.util.BooleanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hmdp.dto.Result;
+import com.hmdp.dto.ScrollResult;
 import com.hmdp.dto.UserDTO;
 import com.hmdp.entity.Blog;
+import com.hmdp.entity.Follow;
 import com.hmdp.entity.User;
 import com.hmdp.mapper.BlogMapper;
 import com.hmdp.service.IBlogService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.hmdp.service.IFollowService;
 import com.hmdp.service.IUserService;
 import com.hmdp.utils.SystemConstants;
 import com.hmdp.utils.UserHolder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -25,6 +30,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static com.hmdp.utils.RedisConstants.BLOG_LIKED_KEY;
+import static com.hmdp.utils.RedisConstants.FEED_KEY;
 
 /**
  * <p>
@@ -40,6 +46,8 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     private IUserService userService;
     @Autowired
     private StringRedisTemplate stringRedisTemplate;
+    @Autowired
+    private IFollowService followService;
 
     /**
      * Blog分页查询
@@ -113,7 +121,7 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
         //3.解析出其中的用户id
         List<Long> ids = top.stream().map(Long::valueOf).collect(Collectors.toList());
         //4.根据id查询用户集合，将user集合复制为userDTO集合，防止信息泄露
-        LambdaQueryWrapper<User> lqw=new LambdaQueryWrapper<>();
+        LambdaQueryWrapper<User> lqw = new LambdaQueryWrapper<>();
         lqw.in(User::getId, ids).orderByDesc(User::getId);
         List<User> users = userService.list(lqw);
         List<UserDTO> userDTOS = users.stream()
@@ -133,10 +141,94 @@ public class BlogServiceImpl extends ServiceImpl<BlogMapper, Blog> implements IB
     public Result queryBlogByUserId(Long id, Integer current) {
         Page<Blog> pageInfo = new Page(current, SystemConstants.MAX_PAGE_SIZE);
         LambdaQueryWrapper<Blog> lqw = new LambdaQueryWrapper<>();
-        lqw.eq(Blog::getUserId, id);
+        lqw.eq(Blog::getUserId, id).orderByDesc(Blog::getCreateTime);
         Page<Blog> page = page(pageInfo, lqw);
         List<Blog> records = page.getRecords();
         return Result.ok(records);
+    }
+
+    /**
+     * 存储blog到数据库+Redis
+     *
+     * @param blog
+     * @return
+     */
+    @Override
+    public Result saveBlog(Blog blog) {
+        // 1.获取登录用户
+        Long userId = UserHolder.getUser().getId();
+        blog.setUserId(userId);
+        // 2.保存blog至数据库
+        boolean saveSuccess = save(blog);
+        if (!saveSuccess) {
+            return Result.fail("新增blog失败！");
+        }
+        // 3.查询blog主的所有关注者
+        Long blogId = blog.getId();
+        LambdaQueryWrapper<Follow> lqw = new LambdaQueryWrapper<>();
+        lqw.eq(Follow::getFollowUserId, userId);
+        List<Follow> follows = followService.list(lqw);
+        // 4.推送笔记Id给所有关注者
+        for (Follow follow : follows) {
+            //4.1获取粉丝Id
+            Long followUserId = follow.getUserId();
+            //4.2推送
+            String feedKey = FEED_KEY + followUserId;
+            stringRedisTemplate.opsForZSet().add(feedKey, blogId.toString(), System.currentTimeMillis());
+        }
+        // 5.返回blogId
+        return Result.ok(blogId);
+    }
+
+    /**
+     * 关注推送页面的分页查询(滚动分页)
+     *
+     * @param max
+     * @param offset
+     * @return
+     */
+    @Override
+    public Result scrollPage(Long max, Integer offset) {
+        //1.获取当前登录用户，得到key
+        Long userId = UserHolder.getUser().getId();
+        String key = FEED_KEY + userId;
+        //2.查询收件箱（feed:id）ZREVRANGEBYSCORE key max min [WITHSCORES] [LIMIT offset count]
+        Set<ZSetOperations.TypedTuple<String>> typedTuples = stringRedisTemplate.opsForZSet()
+                .reverseRangeByScoreWithScores(key, 0, max, offset, 2);
+        //3.1判断是否为空->为空直接返回
+        if (typedTuples == null || typedTuples.isEmpty()) {
+            return Result.ok();
+        }
+        //3.2解析收件箱数据（blogId+score+offset）
+        ArrayList<Long> ids = new ArrayList<>(typedTuples.size());
+        long minTime = 0; //设置初始最小时间为0
+        int os = 1; //设置初始offset=1，记录最小时间相同的元素个数，第二次分页时跳过
+        for (ZSetOperations.TypedTuple<String> typedTuple : typedTuples) {
+            //4.获取blogId
+            ids.add(Long.valueOf(typedTuple.getValue()));
+            //5.获取score->时间戳
+            long time = typedTuple.getScore().longValue();
+            if (time == minTime) {
+                os++;
+            } else {
+                minTime = time;
+                os = 1;
+            }
+        }
+        //4.根据Id 获取blog->补充blog用户信息+是否被登录用户点赞！！
+        LambdaQueryWrapper<Blog> lqw = new LambdaQueryWrapper<>();
+        lqw.in(Blog::getId, ids).orderByDesc(Blog::getId);
+        List<Blog> blogList = list(lqw);
+        for (Blog blog : blogList) {
+            queryBlogUser(blog);
+            isBlogLiked(blog);
+        }
+        //5.封装并返回
+        ScrollResult scrollResult = new ScrollResult();
+        scrollResult.setList(blogList);
+        scrollResult.setOffset(os);
+        scrollResult.setMinTime(minTime);
+        return Result.ok(scrollResult);
     }
 
     /**

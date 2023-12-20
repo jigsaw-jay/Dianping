@@ -1,6 +1,7 @@
 package com.hmdp.controller;
 
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hmdp.dto.Result;
 import com.hmdp.dto.UserDTO;
@@ -35,13 +36,7 @@ public class BlogController {
 
     @PostMapping
     public Result saveBlog(@RequestBody Blog blog) {
-        // 获取登录用户
-        UserDTO user = UserHolder.getUser();
-        blog.setUserId(user.getId());
-        // 保存探店博文
-        blogService.save(blog);
-        // 返回id
-        return Result.ok(blog.getId());
+        return blogService.saveBlog(blog);
     }
 
     /**
@@ -60,10 +55,12 @@ public class BlogController {
         // 获取登录用户
         UserDTO user = UserHolder.getUser();
         // 根据用户查询
-        Page<Blog> page = blogService.query()
-                .eq("user_id", user.getId()).page(new Page<>(current, SystemConstants.MAX_PAGE_SIZE));
+        Page<Blog> pageInfo = new Page<>(current, SystemConstants.MAX_PAGE_SIZE);
+        LambdaQueryWrapper<Blog> lqw =new LambdaQueryWrapper<>();
+        lqw.eq(Blog::getUserId,  user.getId()).orderByDesc(Blog::getCreateTime);
+        Page<Blog> blogPage = blogService.page(pageInfo, lqw);
         // 获取当前页数据
-        List<Blog> records = page.getRecords();
+        List<Blog> records = blogPage.getRecords();
         return Result.ok(records);
     }
 
@@ -87,6 +84,16 @@ public class BlogController {
      */
     @GetMapping("/of/user")
     public Result queryBlogByUserId(@RequestParam("id") Long id, @RequestParam("current") Integer current) {
-        return blogService.queryBlogByUserId(id,current);
+        return blogService.queryBlogByUserId(id, current);
+    }
+
+    /**
+     * 滚动分页查询
+     */
+    @GetMapping("/of/follow")
+    public Result scrollPage(
+            @RequestParam("lastId") Long max,
+            @RequestParam(value = "offset", defaultValue = "0") Integer offset) {
+        return blogService.scrollPage(max, offset);
     }
 }

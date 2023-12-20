@@ -11,6 +11,7 @@ import com.hmdp.entity.SeckillVoucher;
 import com.hmdp.entity.Shop;
 import com.hmdp.entity.User;
 import com.hmdp.mapper.SeckillVoucherMapper;
+import com.hmdp.service.IShopService;
 import com.hmdp.service.IUserService;
 import com.hmdp.service.impl.ShopServiceImpl;
 import com.hmdp.service.impl.UserServiceImpl;
@@ -26,8 +27,11 @@ import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.geo.Point;
+import org.springframework.data.redis.connection.RedisGeoCommands;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
+import javax.sound.midi.MidiFileFormat;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
@@ -46,6 +50,8 @@ class HmDianPingApplicationTests {
     StringRedisTemplate stringRedisTemplate;
     @Autowired
     private UserServiceImpl service;
+    @Autowired
+    private IShopService shopService;
 
     /**
      * 生成token存入Redis，保存为TXT
@@ -91,4 +97,25 @@ class HmDianPingApplicationTests {
         }
     }
 
+    @Test
+    void testLoad() {
+        //1.查询店铺信息
+        List<Shop> shopList = shopService.list();
+        //2.按照typeId对店铺进行分组
+        Map<Long, List<Shop>> map = shopList.stream().collect(Collectors.groupingBy(Shop::getTypeId));
+        //3.分批完成写入Redis
+        for (Map.Entry<Long, List<Shop>> entry : map.entrySet()) {
+            //3.1获取类型Id
+            Long typeId = entry.getKey();
+            String key = SHOP_GEO_KEY + typeId;
+            //3.2获取同类型店铺集合
+            List<Shop> value = entry.getValue();
+
+            List<RedisGeoCommands.GeoLocation<String>> locations = new ArrayList<>(value.size());
+            for (Shop shop : value) {
+                locations.add(new RedisGeoCommands.GeoLocation<>(shop.getId().toString(), new Point(shop.getX(), shop.getY())));
+            }
+            stringRedisTemplate.opsForGeo().add(key, locations);
+        }
+    }
 }

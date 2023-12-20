@@ -96,7 +96,7 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
                     //4.ACK确认 SACK stream.orders g1 id
                     stringRedisTemplate.opsForStream().acknowledge(QUEUE_NAME, "g1", orderInfo.getId());
                 } catch (Exception e) {
-                    log.error("处理订单异常：", e);
+                    //log.error("处理订单异常：", e);
                     //5.处理pending-list异常
                     handlePendingList();
                 }
@@ -173,7 +173,7 @@ public class VoucherOrderServiceImpl extends ServiceImpl<VoucherOrderMapper, Vou
                 //4.ACK确认 SACK stream.orders g1 id
                 stringRedisTemplate.opsForStream().acknowledge(QUEUE_NAME, "g1", orderInfo.getId());
             } catch (Exception e) {
-                log.error("处理pending-list异常：", e);
+                //log.error("处理pending-list异常：", e);
                 try {
                     Thread.sleep(20);
                 } catch (InterruptedException ex) {
