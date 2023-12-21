@@ -122,7 +122,7 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
             //没有下一页，结束
             return Result.ok(Collections.emptyList());
         }
-        //4.1截取from ~end 部分(通过stream流跳过)
+        //4.1截取from ~ end 部分(通过stream流跳过)
         List<Long> shopIds = new ArrayList<>(list.size());
         Map<String, Distance> distanceMap = new HashMap<>(list.size());
         //利用skip跳过之前已经查询的数据

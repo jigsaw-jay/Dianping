@@ -34,6 +34,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import javax.sound.midi.MidiFileFormat;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -117,5 +118,19 @@ class HmDianPingApplicationTests {
             }
             stringRedisTemplate.opsForGeo().add(key, locations);
         }
+    }
+
+    @Test
+    void testHyperLogLog() {
+        String[] values = new String[1000];
+        int j = 0;
+        for (int i = 0; i < 1000000; i++) {
+            j = i % 1000;
+            values[j] = "user_" + i;
+            if (j == 999) {
+                stringRedisTemplate.opsForHyperLogLog().add("test", values);
+            }
+        }
+        System.out.println(stringRedisTemplate.opsForHyperLogLog().size("test"));
     }
 }

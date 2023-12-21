@@ -15,6 +15,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
+import java.time.LocalDateTime;
+import java.util.Date;
 
 /**
  * <p>
@@ -89,5 +91,29 @@ public class UserController {
     @GetMapping("{id}")
     public Result getById(@PathVariable Long id) {
         return userService.queryUserById(id);
+    }
+
+    /**
+     * 签到功能
+     */
+    @PostMapping("/sign")
+    public Result sign() {
+        return userService.sign();
+    }
+
+    /**
+     * 补签功能
+     */
+    @PostMapping("/sign/{dateTime}")
+    public Result reSign(@PathVariable LocalDateTime dateTime) {
+        return userService.reSign(dateTime);
+    }
+
+    /**
+     * 统计签到功能
+     */
+    @PostMapping("/sign/count")
+    public Result countSign() {
+        return userService.countSign();
     }
 }

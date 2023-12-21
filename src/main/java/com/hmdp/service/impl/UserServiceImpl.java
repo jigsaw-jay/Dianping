@@ -22,10 +22,17 @@ import com.hmdp.utils.ValidateCodeUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cglib.core.Local;
+import org.springframework.data.redis.connection.BitFieldSubCommands;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -140,6 +147,86 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         }
         UserDTO userDTO = BeanUtil.copyProperties(user, UserDTO.class);
         return Result.ok(userDTO);
+    }
+
+    /**
+     * 签到功能
+     *
+     * @return
+     */
+    @Override
+    public Result sign() {
+        //1.获取当前登录用户
+        Long userId = UserHolder.getUser().getId();
+        //2.获取当前日期->进行格式转换
+        LocalDateTime now = LocalDateTime.now();
+        String dateKey = now.format(DateTimeFormatter.ofPattern(":yyyyMM"));
+        //3.拼接signKey =USER_SIGN_KEY+日期
+        String signKey = USER_SIGN_KEY + userId + dateKey;
+        //4.获取今天是本月第几天(1-31 -> 0-30)
+        int dayOfMonth = now.getDayOfMonth() - 1;
+        //5.写入Redis
+        stringRedisTemplate.opsForValue().setBit(signKey, dayOfMonth, true);
+        return Result.ok();
+    }
+
+    /**
+     * 补签功能
+     *
+     * @param dateTime
+     * @return
+     */
+    @Override
+    public Result reSign(LocalDateTime dateTime) {
+        //1.获取当前登录用户
+        Long userId = UserHolder.getUser().getId();
+        //2.获取要补签的日期->进行格式转换
+        String dateKey = dateTime.format(DateTimeFormatter.ofPattern(":yyyyMM"));
+        //3.拼接signKey =USER_SIGN_KEY+日期
+        String signKey = USER_SIGN_KEY + userId + dateKey;
+        //4.获取补签的日期是本月第几天(1-31 -> 0-30)
+        int dayOfMonth = dateTime.getDayOfMonth() - 1;
+        //5.写入Redis
+        stringRedisTemplate.opsForValue().setBit(signKey, dayOfMonth, true);
+        return Result.ok();
+    }
+
+    /**
+     * 统计签到功能
+     *
+     * @return
+     */
+    @Override
+    public Result countSign() {
+        //1.获取当前用户
+        Long userId = UserHolder.getUser().getId();
+        //2.获取当前时间
+        LocalDateTime now = LocalDateTime.now();
+        String dateKey = now.format(DateTimeFormatter.ofPattern(":yyyyMM"));
+        //3.拼接Key
+        String signKey = USER_SIGN_KEY + userId + dateKey;
+        //4.根据key和当前日期获取Redis中十进制数->BITFIELD sign:1010:202312 GET u21 0
+        int dayOfMonth = now.getDayOfMonth();
+        List<Long> result = stringRedisTemplate.opsForValue().bitField(signKey,
+                BitFieldSubCommands.create()
+                        .get(BitFieldSubCommands.BitFieldType
+                                .unsigned(dayOfMonth)).valueAt(0));
+        if (result == null || result.isEmpty()) {
+            return Result.ok(0);
+        }
+        //5.取出结果，循环遍历
+        Long num = result.get(0);
+        if (num == null || num == 0) return Result.ok(0);
+        int count = 0;
+        while (true) {
+            if ((num & 1) == 0) {
+                break;
+            } else {
+                count++;
+            }
+            num >>>= 1; //无符号右移
+        }
+        return Result.ok(count);
     }
 
 

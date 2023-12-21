@@ -6,6 +6,9 @@ import com.hmdp.dto.Result;
 import com.hmdp.entity.User;
 import jakarta.servlet.http.HttpServletRequest;
 
+import java.time.LocalDateTime;
+import java.util.Date;
+
 /**
  * <p>
  *  服务类
@@ -23,4 +26,9 @@ public interface IUserService extends IService<User> {
 
     Result queryUserById(Long id);
 
+    Result sign();
+
+    Result reSign(LocalDateTime dateTime);
+
+    Result countSign();
 }
